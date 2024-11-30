@@ -1,6 +1,10 @@
+# Just so I can avoid using the Jupyter Notebook for this task (async stuff I think)
+
+# Load .env file
 from dotenv import load_dotenv
 load_dotenv()
 
+# Importing Libraries
 from llama_parse import LlamaParse
 from llama_index.core import SimpleDirectoryReader
 
@@ -12,12 +16,14 @@ parser = LlamaParse(
     result_type='markdown',
 )
 
-# filename_fn = lambda filename: {"file_name": filename}
+# Setting up the file extractor
+file_extractor = {".doc": parser}
 
-reader = SimpleDirectoryReader(input_dir="Original_Documents", filename_as_id=True)
+# Setting up the reader
+reader = SimpleDirectoryReader(input_dir="Original_Documents", filename_as_id=True, file_extractor=file_extractor)
 processed_files = []
 
-
+# Processing the files
 docsText = []
 docsFileNames = []
 for docs in reader.iter_data():
@@ -28,13 +34,14 @@ for docs in reader.iter_data():
         docsText.append(text)
         print(f"Filename: {filename} added to list")
 
-# print(docsText)
-# print(docsFileNames)
+# Writing the text to a markdown file to see if it works
+with open("Markdown_Documents(TEST_2).md", "w") as f:
+    f.write(docsText[0])
 
+# Creating a DataFrame
 data = {"Filenames": docsFileNames, "Text": docsText}
 
 df = pd.DataFrame(data)
 
-# print(df.head())
+# Saving the DataFrame so the parsing process can be done segment by segment
 df.to_pickle("Markdown_Documents.pkl")
-# df.to_csv("Markdown_Documents.csv", index=False)
