@@ -19,8 +19,13 @@ parser = LlamaParse(
 # Setting up the file extractor
 file_extractor = {".doc": parser}
 
+currDf = pd.read_pickle("Markdown_Documents_CLEAN.pkl")
+
+cleanedFiles = currDf["Filenames"].tolist()
+cleanedFilesPaths = [f"Original_Documents/{file}" for file in cleanedFiles]
+
 # Setting up the reader
-reader = SimpleDirectoryReader(input_dir="Original_Documents", filename_as_id=True, file_extractor=file_extractor)
+reader = SimpleDirectoryReader(input_dir="Original_Documents", filename_as_id=True, file_extractor=file_extractor, exclude=cleanedFiles)
 processed_files = []
 
 # Processing the files
@@ -35,7 +40,7 @@ for docs in reader.iter_data():
         print(f"Filename: {filename} added to list")
 
 # Writing the text to a markdown file to see if it works
-with open("Markdown_Documents(TEST_2).md", "w") as f:
+with open("Markdown_Documents(TEST_3).md", "w") as f:
     f.write(docsText[0])
 
 # Creating a DataFrame
@@ -44,4 +49,4 @@ data = {"Filenames": docsFileNames, "Text": docsText}
 df = pd.DataFrame(data)
 
 # Saving the DataFrame so the parsing process can be done segment by segment
-df.to_pickle("Markdown_Documents.pkl")
+df.to_pickle("Markdown_Documents_bat2.pkl")
