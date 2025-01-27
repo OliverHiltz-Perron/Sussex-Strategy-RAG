@@ -1,0 +1,7 @@
+api_key.txt
+.env
+Markdown_Documents.pkl
+Markdown_Documents_CLEAN.pkl
+*.pkl
+Cleaned_Files/
+Original_Documents/
