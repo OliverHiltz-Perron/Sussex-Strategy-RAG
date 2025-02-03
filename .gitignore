@@ -5,3 +5,5 @@ Markdown_Documents_CLEAN.pkl
 *.pkl
 Cleaned_Files/
 Original_Documents/
+MarkItDown_Test.py
+*.xlsx
