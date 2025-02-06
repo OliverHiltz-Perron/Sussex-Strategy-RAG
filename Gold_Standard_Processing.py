@@ -1,6 +1,9 @@
 from concurrent.futures import ThreadPoolExecutor
 from llama_index.llms.ollama import Ollama
 import pandas as pd
+import ollama
+
+ollama.pull("llama3.2")
 
 preAIdf = pd.read_pickle("Markdown_Documents_CLEAN.pkl")
 
