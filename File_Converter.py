@@ -32,5 +32,7 @@ def convert_folder(input_dir, output_dir):
         except Exception as e:
             print(f"⚠️ Failed {docx_file.name}: {str(e)}")
 
-# Use your existing paths
-convert_folder("/Users/mpere/Documents/GitHub/Sussex-Strategy-RAG/Original_Documents", "/Users/mpere/Documents/GitHub/Sussex-Strategy-RAG/New_Documents")
+# Use local file paths
+input_path = "/Users/mpere/Documents/GitHub/Sussex-Strategy-RAG/Original_Documents"
+output_path = "/Users/mpere/Documents/GitHub/Sussex-Strategy-RAG/Original_Documents"
+convert_folder(input_path, output_path)
