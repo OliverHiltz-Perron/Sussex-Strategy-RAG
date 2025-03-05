@@ -86,3 +86,40 @@ This project is licensed under the terms included in the LICENSE file.
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+## Setup
+
+1. Create environment variables:
+
+   ```bash
+   # Create env directory if it doesn't exist
+   mkdir -p env
+
+   # Copy template to create actual env file
+   cp env/.env.template env/.env
+   ```
+
+2. Edit `env/.env` and add your API keys:
+
+   - OPENAI_API_KEY
+   - DEEPSEEK_API_KEY
+
+3. Install dependencies:
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. Run the application:
+   ```bash
+   python app.py
+   ```
+
+## Environment Variables
+
+The application uses the following environment variables:
+
+- `OPENAI_API_KEY`: Your OpenAI API key
+- `DEEPSEEK_API_KEY`: Your DeepSeek API key
+- `CHROMA_DB_PATH`: Path to ChromaDB storage (default: ./chroma_db)
+- `CHROMA_COLLECTION_NAME`: Name of the ChromaDB collection (default: law_chunks)
