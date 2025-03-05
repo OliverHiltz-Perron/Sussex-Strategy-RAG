@@ -4,12 +4,13 @@ from llama_index.core.node_parser import SimpleNodeParser
 from llama_index.core.schema import Document
 from dotenv import load_dotenv
 import pandas as pd
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 import chromadb
 from datetime import datetime
 import gradio as gr
 from openai import OpenAI
 from pathlib import Path
+import io
 
 # Load environment variables from env folder
 env_path = Path('env/.env')
@@ -262,24 +263,166 @@ def gradio_query(query: str, use_rag: bool) -> str:
     else:
         return direct_deepseek_query(query)
 
-# Update Gradio interface
+def validate_energy_content(text: str) -> Tuple[bool, str]:
+    """Validate if the content is energy-related using DeepSeek.
+    
+    Args:
+        text: First 750 characters of the document
+        
+    Returns:
+        Tuple[bool, str]: (is_energy_related, explanation)
+    """
+    try:
+        client = DeepSeekManager.get_client()
+        prompt = f"""
+        Analyze the following text and determine if it's related to energy (including policy, 
+        regulation, technology, or infrastructure). Respond with either "Yes" or "No" followed 
+        by a brief explanation.
+
+        Text to analyze:
+        {text[:750]}
+        """
+        
+        response = client.chat.completions.create(
+            model=DEEPSEEK_MODEL,
+            messages=[
+                {"role": "system", "content": "You are an energy policy expert. Respond with 'Yes' or 'No' followed by a brief explanation."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3
+        )
+        
+        result = response.choices[0].message.content
+        is_energy_related = result.lower().startswith("yes")
+        explanation = result.split("\n")[0] if "\n" in result else result
+        
+        return is_energy_related, explanation
+        
+    except Exception as e:
+        return False, f"Error validating content: {str(e)}"
+
+def add_document_to_rag(
+    file_content: str,
+    filename: str,
+    document_title: str,
+    collection: chromadb.Collection
+) -> Tuple[bool, str]:
+    """Add a new document to the RAG system if it's energy-related.
+    
+    Args:
+        file_content: The document content
+        filename: Name of the file
+        document_title: Title of the document
+        collection: ChromaDB collection
+        
+    Returns:
+        Tuple[bool, str]: (success, message)
+    """
+    try:
+        # Validate if content is energy-related
+        is_energy_related, explanation = validate_energy_content(file_content)
+        
+        if not is_energy_related:
+            return False, f"Document not added: {explanation}"
+        
+        # Create energy summary using DeepSeek
+        client = DeepSeekManager.get_client()
+        summary_prompt = f"""
+        Provide a concise summary of the energy-related aspects of this document:
+        {file_content[:2000]}
+        """
+        
+        summary_response = client.chat.completions.create(
+            model=DEEPSEEK_MODEL,
+            messages=[
+                {"role": "system", "content": "You are an energy policy expert. Provide concise summaries."},
+                {"role": "user", "content": summary_prompt}
+            ],
+            temperature=0.5
+        )
+        
+        energy_summary = summary_response.choices[0].message.content
+        
+        # Create chunks from the document
+        chunks = create_chunks(file_content)
+        
+        # Prepare chunks for storage
+        processed_data = [{
+            'text': chunk,
+            'document_title': document_title,
+            'filename': filename,
+            'energy_summary': energy_summary
+        } for chunk in chunks]
+        
+        # Store in ChromaDB
+        store_chunks_in_chroma(collection, processed_data)
+        
+        return True, f"Document successfully added. {explanation}"
+        
+    except Exception as e:
+        return False, f"Error processing document: {str(e)}"
+
+# Update Gradio interface to include file upload
 iface = gr.Interface(
-    fn=gradio_query,
+    fn=lambda file, title, query, use_rag: process_input(file, title, query, use_rag),
     inputs=[
+        gr.File(label="Upload Document (Optional)"),
+        gr.Textbox(label="Document Title (Required for uploads)", visible=True),
         gr.Textbox(lines=2, placeholder="Enter your query here..."),
         gr.Checkbox(label="Use RAG (Retrieval-Augmented Generation)", value=True)
     ],
-    outputs=gr.Textbox(lines=20, label="Results"),
+    outputs=[
+        gr.Textbox(lines=20, label="Results"),
+        gr.Textbox(lines=2, label="Upload Status")
+    ],
     title="Energy Law Search Engine",
     description="""Search through energy-related laws and get AI-enhanced analysis.
     Toggle RAG to switch between searching through the law database (RAG enabled) 
-    or asking DeepSeek directly (RAG disabled).""",
+    or asking DeepSeek directly (RAG disabled).
+    You can also upload new energy-related documents to the database.""",
     examples=[
-        ["What are the key renewable energy regulations?", True],
-        ["Explain solar power requirements", False],
-        ["What are the current energy efficiency standards?", True]
+        [None, "", "What are the key renewable energy regulations?", True],
+        [None, "", "Explain solar power requirements", False],
+        [None, "", "What are the current energy efficiency standards?", True]
     ]
 )
+
+def process_input(file, title, query, use_rag):
+    """Process both file uploads and queries.
+    
+    Args:
+        file: Uploaded file object
+        title: Document title
+        query: Search query
+        use_rag: Whether to use RAG
+        
+    Returns:
+        Tuple[str, str]: (search_results, upload_status)
+    """
+    upload_status = ""
+    collection = ChromaManager.get_collection()
+    
+    # Handle file upload if provided
+    if file is not None:
+        if not title.strip():
+            upload_status = "Error: Document title is required for uploads"
+        else:
+            try:
+                content = file.decode('utf-8')
+                success, message = add_document_to_rag(
+                    content,
+                    file.name,
+                    title.strip(),
+                    collection
+                )
+                upload_status = message
+            except Exception as e:
+                upload_status = f"Error processing file: {str(e)}"
+    
+    # Process query
+    search_results = gradio_query(query, use_rag) if query.strip() else ""
+    
+    return search_results, upload_status
 
 if __name__ == "__main__":
     # Launch Gradio interface
